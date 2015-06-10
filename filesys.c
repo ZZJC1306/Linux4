@@ -518,6 +518,73 @@ int fd_df(char *filename)
 
 
 /*
+*参数：filename，类型：char
+*返回值：1，成功；-1，失败
+*功能;删除当前目录下的问价夹
+* copy了df改进一下！！！！
+*/
+int fd_rmdir(char *filename)
+{
+	struct Entry *pentry;
+	int ret;
+	unsigned char c;
+	unsigned short seed,next;
+
+	pentry = (struct Entry*)malloc(sizeof(struct Entry));
+
+	/*扫描当前目录查找文件夹*/
+	ret = ScanEntry(filename,pentry,1);
+	if(ret<0)
+	{
+		printf("no such file\n");
+		free(pentry);
+		return -1;
+	}
+	//如果能找到，查看该问价夹是否为空？？？？？
+	///////////////////////////////////////////////////////////////////////////////////////
+	if()
+	{
+		printf("文件夹非空！");
+		free(pentry);
+		return -1;
+	}
+	/*清除fat表项*/
+	seed = pentry->FirstCluster;
+	while((next = GetFatCluster(seed))!=0xffff)
+	{
+		ClearFatCluster(seed);
+		seed = next;
+
+	}
+
+	ClearFatCluster( seed );
+
+	/*清除目录表项*/
+	c=0xe5;//e5表示该目录项可用
+
+	//现将文件指针定位到目录处，0x20等价于32，因为每条目录表项32bytes
+	if(lseek(fd,ret-0x20,SEEK_SET)<0)
+		perror("lseek fd_df failed");
+	//标记目录表项可用
+	if(write(fd,&c,1)<0)
+		perror("write failed");  
+
+	/*
+        这段话在源程序中存在，但助教感觉这句话是错的。。。o(╯□╰)o
+        如果发现助教的感觉错了赶紧告诉助教，有加分！！
+	if(lseek(fd,ret-0x40,SEEK_SET)<0)
+		perror("lseek fd_df failed");
+	if(write(fd,&c,1)<0)
+	perror("write failed");*/
+
+	free(pentry);
+	if(WriteFat()<0)
+		exit(1);
+	return 1;
+}
+
+
+/*
 *参数：filename，类型：char，创建文件的名称
 size，    类型：int，文件的大小
 *返回值：1，成功；-1，失败
