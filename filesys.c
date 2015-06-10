@@ -55,6 +55,7 @@ void ScanBootSector()
 	bdptor.FATs = buf[0x10];
 	bdptor.RootDirEntries = RevByte(buf[0x11],buf[0x12]);    
 	bdptor.LogicSectors = RevByte(buf[0x13],buf[0x14]);
+	/////////其实并没懂这是要干嘛用的！！！！！！//////////
 	if (bdptor.LogicSectors == 0)
 	  bdptor.LogicSectors =RevWord(buf[0x20],buf[0x21],buf[0x22],buf[0x23]);
 	bdptor.MediaType = buf[0x15];
@@ -147,7 +148,7 @@ int GetEntry(struct Entry *pentry)
 	if( (ret = read(fd,buf,DIR_ENTRY_SIZE))<0)
 		perror("read entry failed");
 	count += ret;
-
+////////////这里的原因是filename的第一个字符不能是e5,00
 	if(buf[0]==0xe5 || buf[0]== 0x00)
 		return -1*count;
 	else
@@ -186,7 +187,7 @@ int GetEntry(struct Entry *pentry)
 		pentry->vlabel = (buf[11] & ATTR_VLABEL) ?1:0;
 		pentry->subdir = (buf[11] & ATTR_SUBDIR) ?1:0;
 		pentry->archive = (buf[11] & ATTR_ARCHIVE) ?1:0;
-
+	////这返回的是什么鬼
 		return count;
 	}
 }
@@ -202,6 +203,7 @@ int fd_ls()
 	unsigned char buf[DIR_ENTRY_SIZE];
 	if( (ret = read(fd,buf,DIR_ENTRY_SIZE))<0)
 		perror("read entry failed");
+		//curdir这个变量是哪里来的？？？？？
 	if(curdir==NULL)
 		printf("Root_dir\n");
 	else
