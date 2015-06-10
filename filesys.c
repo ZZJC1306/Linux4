@@ -523,6 +523,7 @@ int fd_df(char *filename)
 *功能;删除当前目录下的问价夹
 * copy了df改进一下！！！！
 */
+////这函数问题还是挺大的！！！！！！！
 int fd_rmdir(char *filename)
 {
 	struct Entry *pentry;
