@@ -785,6 +785,206 @@ int fd_cf(char *filename,int size)
 
 }
 
+/*
+*参数：filename，类型：char，创建文件夹的名称
+size，    类型：int，文件的大小
+*返回值：1，成功；-1，失败
+*功能：在当前目录下创建文件夹
+*/
+int fd_mkdir(char *filename,int size)
+{
+
+	struct Entry *pentry;
+	int ret,i=0,cluster_addr,offset;
+	unsigned short cluster,clusterno[100];
+	unsigned char c[DIR_ENTRY_SIZE];
+	int index,clustersize;
+	unsigned char buf[DIR_ENTRY_SIZE];
+	pentry = (struct Entry*)malloc(sizeof(struct Entry));
+	//文件需要几个簇
+	clustersize = (size / (CLUSTER_SIZE));
+
+	if(size % (CLUSTER_SIZE) != 0)
+		clustersize ++;
+
+	//扫描当前目录，是否已存在该文件名
+	ret = ScanEntry(filename,pentry,1);
+	if (ret<0)
+	{
+		/*查询fat表，找到空白簇，保存在clusterno[]中*/
+		/*这里也是，为什么要从2开始？？？？？*/
+		for(cluster=2;cluster<1000;cluster++)
+		{
+			index = cluster *2;
+			//如果找到空白簇
+			if(fatbuf[index]==0x00&&fatbuf[index+1]==0x00)
+			{
+				//看看有多少空白簇的意思吧！！！吧所有的空白簇编号都存起来啦
+				clusterno[i] = cluster;
+
+				i++;
+				//如果空白簇已经足够存了，就要退出啦
+				if(i==clustersize)
+					break;
+
+			}
+
+		}
+
+		/*在fat表中写入下一簇信息*/
+		for(i=0;i<clustersize-1;i++)
+		{
+			index = clusterno[i]*2;
+
+			fatbuf[index] = (clusterno[i+1] &  0x00ff);
+			fatbuf[index+1] = ((clusterno[i+1] & 0xff00)>>8);
+
+
+		}
+		/*最后一簇写入0xffff*/
+		index = clusterno[i]*2;
+		fatbuf[index] = 0xff;
+		fatbuf[index+1] = 0xff;
+
+		if(curdir==NULL)  /*往根目录下写文件*/
+		{ 
+
+			if((ret= lseek(fd,ROOTDIR_OFFSET,SEEK_SET))<0)
+				perror("lseek ROOTDIR_OFFSET failed");
+			offset = ROOTDIR_OFFSET;
+			while(offset < DATA_OFFSET)
+			{
+			  //读取一个条目
+				if((ret = read(fd,buf,DIR_ENTRY_SIZE))<0)
+					perror("read entry failed");
+
+				offset += abs(ret);
+				//看看条目是否可用（e5）或者是不是表示后面没有更多条目（00）
+				if(buf[0]!=0xe5&&buf[0]!=0x00)
+				{
+				  //buf[11]是attribute，但是感觉下面这个while循环并没有什么卵用。。。
+				  while(buf[11] == 0x0f)
+					{
+						if((ret = read(fd,buf,DIR_ENTRY_SIZE))<0)
+							perror("read root dir failed");
+						offset +=abs(ret);
+					}
+				}
+
+
+				/*找出空目录项或已删除的目录项*/ 
+				else
+				{       
+					offset = offset-abs(ret);     
+					for(i=0;i<=strlen(filename);i++)
+					{
+						c[i]=toupper(filename[i]);
+					}			
+					for(;i<=10;i++)
+						c[i]=' ';
+
+					c[11] = 0x01;
+
+					/*写第一簇的值*/
+					c[26] = (clusterno[0] &  0x00ff);
+					c[27] = ((clusterno[0] & 0xff00)>>8);
+
+					/*写文件的大小*/
+					c[28] = (size &  0x000000ff);
+					c[29] = ((size & 0x0000ff00)>>8);
+					c[30] = ((size& 0x00ff0000)>>16);
+					c[31] = ((size& 0xff000000)>>24);
+
+					/*还有很多内容并没有写入，大家请自己补充*/
+					/*而且这里还有个问题，就是对于目录表项的值为00的情况处理的不好*/
+					if(lseek(fd,offset,SEEK_SET)<0)
+						perror("lseek fd_cf failed");
+					if(write(fd,&c,DIR_ENTRY_SIZE)<0)
+						perror("write failed");
+
+
+
+
+					free(pentry);
+					if(WriteFat()<0)
+						exit(1);
+
+					return 1;
+				}
+
+			}
+		}
+		else 
+		{
+		  //子目录的情况与根目录类似
+			cluster_addr = (curdir->FirstCluster -2 )*CLUSTER_SIZE + DATA_OFFSET;
+			if((ret= lseek(fd,cluster_addr,SEEK_SET))<0)
+				perror("lseek cluster_addr failed");
+			offset = cluster_addr;
+			while(offset < cluster_addr + CLUSTER_SIZE)
+			{
+				if((ret = read(fd,buf,DIR_ENTRY_SIZE))<0)
+					perror("read entry failed");
+
+				offset += abs(ret);
+
+				if(buf[0]!=0xe5&&buf[0]!=0x00)
+				{
+					while(buf[11] == 0x0f)
+					{
+						if((ret = read(fd,buf,DIR_ENTRY_SIZE))<0)
+							perror("read root dir failed");
+						offset +=abs(ret);
+					}
+				}
+				else
+				{ 
+					offset = offset - abs(ret);      
+					for(i=0;i<=strlen(filename);i++)
+					{
+						c[i]=toupper(filename[i]);
+					}
+					for(;i<=10;i++)
+						c[i]=' ';
+
+					c[11] = 0x01;
+
+					c[26] = (clusterno[0] &  0x00ff);
+					c[27] = ((clusterno[0] & 0xff00)>>8);
+
+					c[28] = (size &  0x000000ff);
+					c[29] = ((size & 0x0000ff00)>>8);
+					c[30] = ((size& 0x00ff0000)>>16);
+					c[31] = ((size& 0xff000000)>>24);
+
+					if(lseek(fd,offset,SEEK_SET)<0)
+						perror("lseek fd_cf failed");
+					if(write(fd,&c,DIR_ENTRY_SIZE)<0)
+						perror("write failed");
+
+
+
+
+					free(pentry);
+					if(WriteFat()<0)
+						exit(1);
+
+					return 1;
+				}
+
+			}
+		}
+	}
+	else
+	{
+		printf("This filename is exist\n");
+		free(pentry);
+		return -1;
+	}
+	return 1;
+
+}
+
 void do_usage()
 {
 	printf("please input a command, including followings:\n\tls\t\t\tlist all files\n\tcd <dir>\t\tchange direcotry\n\tcf <filename> <size>\tcreate a file\n\tdf <file>\t\tdelete a file\n\texit\t\t\texit this system\n");
