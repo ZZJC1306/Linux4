@@ -170,6 +170,7 @@ int GetEntry(struct Entry *pentry)
 
 
 		//以下两个还原文件时间的函数有问题，请参照pdf文档修正
+		//感觉并没有什么问题？？？难道是这个时间计算的是最后修改的时间，而要求计算的是文件的创始时间？？？？？
 		info[0]=buf[22];
 		info[1]=buf[23];
 		findTime(&(pentry->hour),&(pentry->min),&(pentry->sec),info);  
@@ -244,6 +245,7 @@ int fd_ls()
 
 	else /*显示子目录*/
 	{
+		//没懂为什么要减2，是不是说保留区，还有FAT，根目录什么的占了2个簇？？？？？？？
 		cluster_addr = DATA_OFFSET + (curdir->FirstCluster-2) * CLUSTER_SIZE ;
 		if((ret = lseek(fd,cluster_addr,SEEK_SET))<0)
 			perror("lseek cluster_addr failed");
@@ -343,16 +345,19 @@ int fd_cd(char *dir)
 	struct Entry *pentry;
 	int ret;
 
+	//比较dir 和 “.” 这个有什么意义？？？？
 	if(!strcmp(dir,"."))
 	{
 		return 1;
 	}
+	//这里也不明白有什么意义？？？？？
 	if(!strcmp(dir,"..") && curdir==NULL)
 		return 1;
 	/*返回上一级目录*/
 	if(!strcmp(dir,"..") && curdir!=NULL)
 	{
 	  //fatherdir 用于保存父目录信息。
+	  //把当前值的父目录赋给当前目录
 		curdir = fatherdir[dirno];
 		dirno--; 
 		return 1;
