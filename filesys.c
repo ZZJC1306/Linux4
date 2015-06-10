@@ -363,8 +363,8 @@ int fd_cd(char *dir)
 		return 1;
 	}
 	//注意此处有内存泄露
+	//为何会有内存泄露？？？？？？？？？
 	pentry = (struct Entry*)malloc(sizeof(struct Entry));
-	
 	ret = ScanEntry(dir,pentry,1);
 	if(ret < 0)
 	{
@@ -533,8 +533,7 @@ int fd_cf(char *filename,int size)
 	int index,clustersize;
 	unsigned char buf[DIR_ENTRY_SIZE];
 	pentry = (struct Entry*)malloc(sizeof(struct Entry));
-
-
+	//文件需要几个簇
 	clustersize = (size / (CLUSTER_SIZE));
 
 	if(size % (CLUSTER_SIZE) != 0)
@@ -545,14 +544,18 @@ int fd_cf(char *filename,int size)
 	if (ret<0)
 	{
 		/*查询fat表，找到空白簇，保存在clusterno[]中*/
+		/*这里也是，为什么要从2开始？？？？？*/
 		for(cluster=2;cluster<1000;cluster++)
 		{
 			index = cluster *2;
+			//如果找到空白簇
 			if(fatbuf[index]==0x00&&fatbuf[index+1]==0x00)
 			{
+				//看看有多少空白簇的意思吧！！！吧所有的空白簇编号都存起来啦
 				clusterno[i] = cluster;
 
 				i++;
+				//如果空白簇已经足够存了，就要退出啦
 				if(i==clustersize)
 					break;
 
