@@ -882,8 +882,8 @@ int fd_mkdir(char *filename,int size)
 					}			
 					for(;i<=10;i++)
 						c[i]=' ';
-
-					c[11] = 0x01;
+				////////注明这是文件夹
+					c[11] = 0x10;
 
 					/*写第一簇的值*/
 					c[26] = (clusterno[0] &  0x00ff);
@@ -946,8 +946,8 @@ int fd_mkdir(char *filename,int size)
 					}
 					for(;i<=10;i++)
 						c[i]=' ';
-
-					c[11] = 0x01;
+				////////////注明这是文件夹
+					c[11] = 0x10;
 
 					c[26] = (clusterno[0] &  0x00ff);
 					c[27] = ((clusterno[0] & 0xff00)>>8);
